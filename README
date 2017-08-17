@@ -1,0 +1,20 @@
+Final Knapsack results :
+2 results from the knapsack model ---horizontal bar graph with the proportion and amount,
+Show the decline probability as well
+
+--Show key deal paramters on the screen
+
+Allow for changes in the knapsack via inputs 
+--Include specific lenders
+--Exclude specific lenders
+--Limits on probability and the proportions
+--Max cap on proportion
+--
+
+All lenders decline and proportion side by side 
+
+Lender History 
+
+Deal Summary --
+
+Allow for data pull by creating connection on realtime (Check this locally )
