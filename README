@@ -18,3 +18,24 @@ Lender History
 Deal Summary --
 
 Allow for data pull by creating connection on realtime (Check this locally )
+
+
+Panels
+
+-Syndication
+  -Some key deal level variables (Issuer,Launch Date,Deal Amount,RC,TLA)
+  -Deal Selection parameters
+  -Run the knapsack 
+  -Plot the results
+  -Horizontal Bar Chart 
+-
+-Overall Lenders Panel
+-All lender proportion and decline probabilities
+
+--Lender Summary
+--Historical Numbers 
+
+--Update the code to allow for file upload 
+--Further allow to connect to the databases
+--Try with mdss or BMG or any other data source
+--USe secret package to get the user id and passwords
