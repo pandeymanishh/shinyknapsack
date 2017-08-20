@@ -28,23 +28,23 @@ ui <- dashboardPage(
                       ,fluidPage(wellPanel(style = "background-color: #ffe6ff;"
                                            ,fluidRow(column(6,selectInput('issuer', 'Select the Issuer', sort(unique(syndicatedt$Issuer))
                                                        , multiple=FALSE))
-                                           ,column(3,uiOutput("LaunchDate"))
-                                           ,column(3,uiOutput("DealAmount"))))
+                                                     ,column(3,uiOutput("LaunchDate"))
+                                                     ,column(3,uiOutput("DealAmount"))))
                                  
                                  ,wellPanel(style = "background-color: #e6ffff;"
                                             ,fluidRow(column(6,sliderInput(inputId = "contminmax"
                                                        ,label = "Limit max and min contribution"
                                                        ,value = c(0.03,0.3), min = 0, max = 1))
-                                           ,column(6,sliderInput(inputId = "deccap"
+                                                      ,column(6,sliderInput(inputId = "deccap"
                                                         ,label = "Maximum decline probability allowed"
-                                                        ,value = 0.8
-                                                        ,min = 0
-                                                        ,max = 1))))
+                                                        ,value = 0.8   ,min = 0 ,max = 1))))
                                  ,wellPanel(style = "background-color: #ffffcc;"
                                             ,fluidRow(column(6,uiOutput("include1"))
                                                      ,column(6,uiOutput("exclude1"))
-                                           ,fluidRow(column(6,uiOutput("printmsg"))
-                                                     ,column(6,uiOutput("knapres1")))))))
+                                            ,fluidRow(column(6,uiOutput("printmsg"))
+                                                     ,column(6,uiOutput("knapres1")))))
+                                 ,mainPanel(column(6,plotOutput("plot1"))
+                                           ,column(6,plotOutput("plot2")),width = 12)))
              
              ,tabItem(tabName = "lendsumm",fluidPage())
              
@@ -84,15 +84,10 @@ server <- function(input, output) {
                 ,multiple = FALSE)
      })
 
- # output$DealAmount<-renderText(paste0(input$LaunchDt,"-",dim(syndicatedt)))
+
   
   #Once the deal is selected run the knapsack based on the data
-  
-  #wt<-reactive({syndicatedt[Issuer==input$issuer & Launch_Date==input$LaunchDt & Deal_Amount==input$DealAmt,DollarAmt,]})
-  #dec<-reactive({syndicatedt[Issuer==input$issuer & Launch_Date==input$LaunchDt & Deal_Amount==input$DealAmt,dec_prob,]})
-
-  #Now run the knapsack
-  
+ 
   #Lets apply the filter on the min and max proportions
   #Subset the data
   
@@ -111,11 +106,17 @@ server <- function(input, output) {
     })
   
   #Now further subset based on the included lenders
-  subst2<-reactive({syndicatedt[Lender %in% input$include2
-                                & Issuer==input$issuer 
-                                & Launch_Date==input$LaunchDt 
-                                & Deal_Amount==as.numeric(input$DealAmt)]})
-  
+  subst2<-reactive({syndicatedt[,':='(cont_prop_1=ifelse(cont_prop>=as.numeric(input$contminmax[2])
+                                                         ,as.numeric(input$contminmax[2])
+                                                         ,cont_prop)
+                                      ,DollarAmt_1=ifelse(cont_prop>=as.numeric(input$contminmax[2])
+                                                          ,round(as.numeric(input$contminmax[2])*Deal_Amount,0)
+                                                          ,DollarAmt)
+                                        ),][Lender %in% input$include2
+                                            & Issuer==input$issuer 
+                                            & Launch_Date==input$LaunchDt 
+                                            & Deal_Amount==as.numeric(input$DealAmt)]})
+
   cond1<-reactive({(as.numeric(input$DealAmt)-sum(subst2()$DollarAmt_1))<=0})
   cond2<-reactive({(as.numeric(input$DealAmt)-sum(subst2()$DollarAmt_1))})
   
@@ -136,11 +137,6 @@ server <- function(input, output) {
                                     & !(Lender %in% c(input$exclude2,input$include2))]
                                       }})
   
-
-  #output$printmsg<-renderPrint(paste0(input$include2))
-  
-  #output$printmsg<-renderPrint(paste0(sum(subst2()$DollarAmt_1),'---',dim(subst2())[1],'--',dim(subst1())[1],'---',dim(subst())[1]))
-  
   knapres<-reactive({
     if(cond1() | length(input$include2)==0){
 
@@ -154,18 +150,75 @@ server <- function(input, output) {
                                 ,cap =cond2())
   }
   })
-
-
+  
   #output$knapres1<-renderPrint(paste0(knapres()))
   output$knapres1<-renderPrint(paste0(knapres()))
+  
+  #Generate the final result set
+  
+  finalres<-reactive({
+    if(cond1() | length(input$include2)==0){
+      
+       setorder(subst()[knapres()$indices,c('Lender','dec_prob','DollarAmt','cont_prop','cont_prop_1','DollarAmt_1'),with=FALSE]
+                ,DollarAmt_1)
+      
+    }else{
+      
+      setorder(rbind(subst2()[,c('Lender','dec_prob','DollarAmt','cont_prop','cont_prop_1','DollarAmt_1'),with=FALSE]
+            ,subst1()[knapres()$indices,c('Lender','dec_prob','DollarAmt','cont_prop','cont_prop_1','DollarAmt_1'),with=FALSE])
+            ,DollarAmt_1)
+      
+    }
+  })
+  
+  
+  output$printmsg<-renderPrint(paste0(sum(finalres()$DollarAmt_1),'---',sum(subst2()$DollarAmt_1),'----'
+                                      ,knapres()$capacity))
+  
+  #Now append this data if incase there are fixed lenders
+  
+  d1<-reactive({ggplot(data = finalres(),aes(x=factor(Lender,levels = Lender)))+
+      coord_flip()+scale_y_continuous(limits=c(0,max(finalres()$DollarAmt_1)+10))+
+      geom_bar(data = finalres(),aes(y=DollarAmt_1,fill=Lender),show.legend = FALSE,stat = 'sum')+
+      theme_light()+ylab("Contribution Alloted")+xlab("Lender")
+      #+ geom_text(data=finalres(),aes(x=DollarAmt_1,y=Lender
+      #                               ,label=paste0(tt$DollarAmt,',',paste0(round(tt$cont_prop*100,1),'%')))
+      #           ,vjust=0)
+      })
+
+  d2<-reactive({ggplot(data = finalres(),aes(x=factor(Lender,levels = Lender)))+
+      coord_flip()+scale_y_continuous(limits=c(0,max(finalres()$dec_prob)+0.1))+
+      geom_bar(data = finalres(),aes(y=dec_prob,fill=Lender),show.legend = FALSE,stat = 'sum')+
+      theme_light()+ylab("Decline Probability")+xlab("Lender")
+      #+ geom_text(data=finalres(),aes(x=dec_prob,y=Lender
+      #                               ,label=paste0(round(tt$dec_prob*100,1),'%'))
+      #           ,vjust=0)
+  })
+  
+  output$plot1<-renderPlot({d1()})
+  output$plot2<-renderPlot({d2()})
+  
   
 }
     
 shinyApp(ui = ui, server = server)    
-
-#Rearrange the panel 
-#Also the colors
-
+# 
+# #Rearrange the panel 
+# #Also the colors
+# 
+# #Now based on the knapsack result collate the table together and create the graph
+# 
+# 
+# #Compute the horizontal bar chart
+# library(ggplot2)
+# 
+# ggplot(data = tt,aes(x=factor(Lender,levels = Lender)))+
+#   coord_flip()+scale_y_continuous(limits=c(0,max(tt$DollarAmt)+10))+
+#   geom_bar(data = tt,aes(y=DollarAmt,fill=Lender),show.legend = FALSE,stat = 'sum')+
+#   theme_light()+ylab("Contribution Alloted")+xlab("Lender")+
+#   geom_text(tt,aes(label=paste0(tt$DollarAmt,',',paste0(round(tt$cont_prop*100,1),'%'))))
+# 
+#   
 
 
 
