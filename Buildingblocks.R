@@ -2,6 +2,7 @@ library(shiny)
 library(shinydashboard)
 library(data.table)
 library(adagio)
+library(ggplot2)
 #Get the connected list
 setwd("/home/manish/Shiny Tutorial/")
 #Add elements to your app as arguments to fluidPage()
@@ -177,22 +178,20 @@ server <- function(input, output) {
   
   #Now append this data if incase there are fixed lenders
   
-  d1<-reactive({ggplot(data = finalres(),aes(x=factor(Lender,levels = Lender)))+
+  d1<-reactive({ggplot(finalres(), aes(x=factor(Lender,levels = Lender), y=DollarAmt_1)) +
+      geom_bar(stat="sum",aes(fill=Lender),show.legend = FALSE) +
+      geom_text(aes(label=paste0(finalres()$DollarAmt_1,',',paste0(round(finalres()$cont_prop_1*100,1),'%')))
+                , position=position_stack(vjust=0.5))+
       coord_flip()+scale_y_continuous(limits=c(0,max(finalres()$DollarAmt_1)+10))+
-      geom_bar(data = finalres(),aes(y=DollarAmt_1,fill=Lender),show.legend = FALSE,stat = 'sum')+
-      theme_light()+ylab("Contribution Alloted")+xlab("Lender")
-      #+ geom_text(data=finalres(),aes(x=DollarAmt_1,y=Lender
-      #                               ,label=paste0(tt$DollarAmt,',',paste0(round(tt$cont_prop*100,1),'%')))
-      #           ,vjust=0)
+      theme_light()+ylab("Contribution Allocated")+xlab("Lender")
       })
 
-  d2<-reactive({ggplot(data = finalres(),aes(x=factor(Lender,levels = Lender)))+
-      coord_flip()+scale_y_continuous(limits=c(0,max(finalres()$dec_prob)+0.1))+
-      geom_bar(data = finalres(),aes(y=dec_prob,fill=Lender),show.legend = FALSE,stat = 'sum')+
+  d2<-reactive({ggplot(finalres(), aes(x=factor(Lender,levels = Lender), y=dec_prob)) +
+      geom_bar(stat="sum",aes(fill=Lender),show.legend = FALSE) +
+      geom_text(aes(label=paste0(round(finalres()$dec_prob*100,1),'%'))
+                , position=position_stack(vjust=0.5))+
+      coord_flip()+scale_y_continuous(limits=c(0,1))+
       theme_light()+ylab("Decline Probability")+xlab("Lender")
-      #+ geom_text(data=finalres(),aes(x=dec_prob,y=Lender
-      #                               ,label=paste0(round(tt$dec_prob*100,1),'%'))
-      #           ,vjust=0)
   })
   
   output$plot1<-renderPlot({d1()})
@@ -202,24 +201,3 @@ server <- function(input, output) {
 }
     
 shinyApp(ui = ui, server = server)    
-# 
-# #Rearrange the panel 
-# #Also the colors
-# 
-# #Now based on the knapsack result collate the table together and create the graph
-# 
-# 
-# #Compute the horizontal bar chart
-# library(ggplot2)
-# 
-# ggplot(data = tt,aes(x=factor(Lender,levels = Lender)))+
-#   coord_flip()+scale_y_continuous(limits=c(0,max(tt$DollarAmt)+10))+
-#   geom_bar(data = tt,aes(y=DollarAmt,fill=Lender),show.legend = FALSE,stat = 'sum')+
-#   theme_light()+ylab("Contribution Alloted")+xlab("Lender")+
-#   geom_text(tt,aes(label=paste0(tt$DollarAmt,',',paste0(round(tt$cont_prop*100,1),'%'))))
-# 
-#   
-
-
-
-
