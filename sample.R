@@ -28,7 +28,7 @@ ui <- function() { 
    </tr>           
    </tbody>           
    </table>'),            
-   p(),      
+  
    h4("Table with the class 'ui sortable celled table'"),      
    HTML('<table class="ui sortable celled table">  
    <thead>    
